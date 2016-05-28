@@ -2,9 +2,9 @@ package saoEngine;
 
 public class Transition
 {
-	State _start_state;
-	int _end_state_index;
-	int _event_id;
+	private State _start_state;
+	private int _end_state_index;
+	private int _event_id;
 	
 	public Transition(){}
 	

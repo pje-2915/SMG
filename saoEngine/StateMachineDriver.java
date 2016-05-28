@@ -1,13 +1,25 @@
 
 package saoEngine;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import javafx.animation.AnimationTimer;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
+import javafx.scene.Group;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.ArcType;
 import javafx.stage.Stage;
+import javafx.util.Duration;
  
 public class StateMachineDriver extends Application
 {
@@ -21,6 +33,8 @@ public class StateMachineDriver extends Application
 	static Event tick;
 	static Event flick;
 	static Event bswap;
+
+	static int test_counter = 0;
 
 	public static void main(String[] args)
     {        
@@ -58,46 +72,66 @@ public class StateMachineDriver extends Application
     {
         primaryStage.setTitle("States-As-Objects Engine");
         Button btn = new Button();
-        btn.setText("Run Animation");
+        btn.setText("Run Animation");        
+        Group root = new Group();
+        Canvas canvas = new Canvas(600, 500);
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        
+        Timeline timeline = new Timeline();
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        AnimationTimer timer = new AnimationTimer()
+        {
+            @Override
+            public void handle(long now)
+            {
+            }
+        };
+        
         btn.setOnAction(new EventHandler<ActionEvent>()
         {
             @Override
             public void handle(ActionEvent event)
             {
-            	simulate();
+            	timeline.play();
+            	timer.start();;
             }
         });
         
-        StackPane root = new StackPane();
+        EventHandler onFinished = new EventHandler<ActionEvent>()
+		{
+			public void handle(ActionEvent t)
+			{
+				simulate(gc);
+			}
+		};
+		
+        Duration duration = Duration.millis(1000);
+		KeyFrame keyFrame = new KeyFrame(duration, onFinished);
+		timeline.getKeyFrames().add(keyFrame);
+
+        show_diagram(gc);
+        root.getChildren().add(canvas);
         root.getChildren().add(btn);
-        primaryStage.setScene(new Scene(root, 300, 250));
+        primaryStage.setScene(new Scene(root, 600, 500));
         primaryStage.show();
     }
     
-    public void simulate()
+    public void show_diagram(GraphicsContext gc)
     {
-		// red -> amber
-		traffic_light.event(swap);
-		// amber -> amber
-		traffic_light.event(tick);
-		// amber-> green
-		traffic_light.event(swap);
-		// green#on -> green#off
-		traffic_light.event(flick);
-		// green#off -> green#on
-		traffic_light.event(flick);
-		// green -> red
-		traffic_light.event(swap);
-		// red -> blue
-		traffic_light.event(bswap);
-		// blue#on -> blue#off
-		traffic_light.event(flick);
-		// blue#off -> blue#on
-		traffic_light.event(flick);
-		// blue -> red
-		traffic_light.event(bswap);
-		// red -> amber
-		traffic_light.event(swap);
+    	traffic_light.calculate_coordinates();
+    	traffic_light.draw_rectangles(300,250, gc); // TODO
+    }
+   
+    public void simulate(GraphicsContext gc)
+    {
+    	Event test_events[] =
+    		{
+    				swap, tick, swap, flick, flick, swap, bswap, flick, flick, bswap, swap
+    		};
+    	
+    	traffic_light.event(test_events[test_counter]);
+    	if(++test_counter == test_events.length) test_counter = 0;
+    	traffic_light.draw_rectangles(300,250, gc); // TODO
     }
 }
 

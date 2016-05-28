@@ -2,15 +2,31 @@ package saoEngine;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
 
 public class State
 {
-	String _name;
-	List<State> _state = new ArrayList<State>();
-	List<Transition> _transition = new ArrayList<Transition>();
-	int _currentSubStateIndex = 0;
-	int _myStateIndex = 0;
-	State _parent = null;
+	private String _name;
+	private List<State> _state = new ArrayList<State>();
+	private List<Transition> _transition = new ArrayList<Transition>();
+	private int _currentSubStateIndex = 0;
+	private int _myStateIndex = 0;
+	private State _parent = null;
+	
+	// Graphics
+	double _width = 40;
+	double _height = 20;
+	double _x = 0;
+	double _y = 0;
+	double _x_adjust = 0;
+	double _y_adjust = 0;
+	
+	//==============================================================
+	//======================= constructio ==========================
+	//==============================================================
 	
 	State(String name)
 	{
@@ -60,17 +76,11 @@ public class State
 		// Begin the recursive constructions
 		return duplicate(parent, name, false);
 	}
-	
-	public void set_index(int index)
-	{
-		_myStateIndex = index;
-	}
-	
-	public int get_index()
-	{
-		return _myStateIndex;
-	}
-	
+
+	//==============================================================
+	//=================== customisation ======================
+	//==============================================================
+
 	// Register a substate
 	public void register_state(State st)
 	{
@@ -87,6 +97,80 @@ public class State
 	{
 		Transition tr = new Transition(this, ev, end._myStateIndex);
 		_transition.add(tr);
+	}
+
+	//==============================================================
+	//=================== getters and setters ======================
+	//==============================================================
+
+	public void set_index(int index)
+	{
+		_myStateIndex = index;
+	}
+	
+	public int get_index()
+	{
+		return _myStateIndex;
+	}
+		
+	public String get_name()
+	{
+		return _name;
+	}
+
+	public String get_full_name()
+	{
+		String full_name = "";
+		if(_parent != null) full_name = _parent.get_full_name() +  "#";
+		full_name += _name;
+		return full_name;
+	}
+	
+	public State get_parent()
+	{
+		return _parent;
+	}
+	
+	public State get_substate(int index)
+	{
+		State state = null;
+		if(index >= 0 && index < _state.size())
+		{
+			state = _state.get(index);
+		}
+		return state;
+	}
+	
+	public Transition get_transition(int index)
+	{
+		Transition transition = null;
+		if(index >= 0 && index < _transition.size())
+		{
+			transition = _transition.get(index);
+		}
+		return transition;
+	}
+	
+	public int get_subclass_count()
+	{
+		return _state.size();
+	}
+	
+	public int get_transition_count()
+	{
+		return _transition.size();
+	}
+	
+	//==============================================================
+	//======================== execution ===========================
+	//==============================================================
+	
+	public void switch_to_state(int state_index)
+	{
+		if(state_index >=0 && state_index < _state.size())
+		{
+			_currentSubStateIndex = state_index;
+		}
 	}
 	
 	public boolean event(Event ev)
@@ -106,39 +190,78 @@ public class State
 		return false;
 	}
 	
-	public String get_name()
+	public boolean is_active()
 	{
-		return _name;
+		boolean active = (_parent == null || _parent._currentSubStateIndex == _myStateIndex);
+		active = active && (_parent == null || _parent.is_active());
+		return active;
 	}
+	//==============================================================
+	//======================== graphics ===========================
+	//==============================================================
 
-	public String get_full_name()
+	public void calculate_coordinates()
 	{
-		String full_name = "";
-		if(_parent != null) full_name = _parent.get_full_name() +  "#";
-		full_name += _name;
-		return full_name;
+		double fudge1 = 1.3;
+		double padding = 1.1;
+		double label_height = 45;
+		
+		double min_x = 0;
+		double min_y = 0;	
+		double max_x = 0;
+		double max_y = 0;	
+		
+		int r_count = _state.size();
+		double max_radius = _width + padding;
+		for (int i = 0; i < r_count; i++)
+		{
+			State r = _state.get(i);
+			r.calculate_coordinates();
+			int angle = (360/r_count)*i;
+			double radius =  r._width * padding;
+			max_radius = (radius > max_radius)? radius : max_radius;
+			r._x = -radius * Math.cos(Math.toRadians(angle));
+			r._y = -radius * Math.sin(Math.toRadians(angle));
+			
+			min_x = (r._x - 0.5 * r._width < min_x)? r._x - 0.5 * r._width: min_x;
+			min_y = (r._y - 0.5 * r._height < min_y)? r._y - 0.5 * r._height: min_y;
+			max_x = (r._x + 0.5 * r._width > max_x)? r._x + 0.5 * r._width : max_x;
+			max_y = (r._y + 0.5 * r._height > max_y)? r._y + 0.5 * r._height : max_y;
+		}	
+
+		if(r_count > 0)
+		{
+			_width = (max_x - min_x) * fudge1;
+			_height = (max_y - min_y) * fudge1 + label_height;
+		
+			_x_adjust = (min_x + max_x)/2;
+			_y_adjust = (min_y + max_y)/2;
+		}
+		System.out.printf("%s\n",  _name);
+		System.out.printf("_width = %f, _height = %f\n",  _width, _height);
+		System.out.printf("_x_adjust = %f, _y_adjust = %f\n",  _x_adjust, _y_adjust);
+
 	}
 	
-	public void switch_to_state(int state_index)
+	public void draw_rectangles(double x, double y, GraphicsContext gc)
 	{
-		if(state_index >=0 && state_index < _state.size())
+		double x_left = (x + _x) - _width/2;
+		double y_left = (y + _y) - _height/2;
+		if(is_active())
 		{
-			_currentSubStateIndex = state_index;
+			gc.setStroke(Color.RED);
+		}
+		else
+		{
+			gc.setStroke(Color.BLACK);			
+		}
+        gc.strokeRoundRect(x_left, y_left, _width, _height, 10, 10);
+        gc.strokeText(_name, x_left + 5, y_left + _height - 5, _width * 0.8);
+		System.out.printf("%s : x=%f, y=%f, width=%f height=%f\n", _name, x + _x, y + _y, _width, _height);
+		for (int i = 0; i < _state.size(); i++)
+		{
+			_state.get(i).draw_rectangles(x + _x - _x_adjust, y + _y - _y_adjust, gc);
 		}
 	}
 	
-	public State get_parent()
-	{
-		return _parent;
-	}
-	
-	public State get_substate(int index)
-	{
-		State state = null;
-		if(index >= 0 && index < _state.size())
-		{
-			state = _state.get(index);
-		}
-		return state;
-	}
 }

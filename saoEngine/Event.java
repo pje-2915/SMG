@@ -2,9 +2,9 @@ package saoEngine;
 
 public class Event
 {
-	String _name;
-	int _id;
-	static int _highest = 0;
+	private String _name;
+	private int _id;
+	private static int _highest = 0;
 	
 	public Event(){}
 	public Event(String name)
